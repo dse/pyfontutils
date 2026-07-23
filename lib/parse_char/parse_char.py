@@ -3,7 +3,7 @@ import re, fontforge, unicodedata
 def parse_char(param, default=None, aliases=None):
     orig_param = param
 
-    def default_value():
+    def default_value_or_error():
         if default == (-1,):
             return (-1, "", -1, "", None)
         elif default == (None,):
@@ -15,12 +15,12 @@ def parse_char(param, default=None, aliases=None):
 
     if type(param) is float:
         if param != round(param):
-            return default_value()
+            return default_value_or_error()
         param = round(param)
 
     if type(param) is int:
         if param not in range(0, 0x110000):
-            return default_value()
+            return default_value_or_error()
         codepoint = param
         glyphname = fontforge.nameFromUnicode(param)
         return (codepoint, glyphname, codepoint, glyphname, None)
@@ -46,10 +46,10 @@ def parse_char(param, default=None, aliases=None):
     elif type(aliases) is dict and param in aliases:
         base_codepoint = aliases[param]
     else:
-        return default_value()
+        return default_value_or_error()
 
     if base_codepoint not in range(0, 0x100000):
-        return default_value()
+        return default_value_or_error()
 
     base_glyphname = fontforge.nameFromUnicode(base_codepoint)
     if variant is None:
