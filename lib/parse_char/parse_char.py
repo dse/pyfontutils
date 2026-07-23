@@ -26,7 +26,7 @@ def parse_char(param, default=None, aliases=None):
         return (codepoint, glyphname, codepoint, glyphname, None)
 
     if type(param) is not str:
-        raise ValueError("invalid parameter type: %s", repr(type(param)))
+        raise TypeError("invalid parameter type: %s", repr(type(param)))
 
     variant = None
     if "." in param:
