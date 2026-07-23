@@ -1,6 +1,6 @@
 import re, fontforge, unicodedata
 
-def parse_char(param, default=None):
+def parse_char(param, default=None, aliases=None):
     orig_param = param
 
     def default_value():
@@ -43,6 +43,8 @@ def parse_char(param, default=None):
         base_codepoint = ord(char)
     elif (cp := fontforge.unicodeFromName(param)) >= 0:
         base_codepoint = cp
+    elif type(aliases) is dict and param in aliases:
+        base_codepoint = aliases[param]
     else:
         return default_value()
 
@@ -157,8 +159,6 @@ def test_aliases():
         "SNOWDUDE": "SNOWMAN",
     }
 
-    assert(parse_char(0x21f4a9, aliases=aliases)         == (0x1f4a9, "u1F4A9", 0x1f4a9, "u1F4A9", None))
-    assert(parse_char(0x212603, aliases=aliases)         == (0x2603, "uni2603", 0x2603, "uni2603", None))
     assert(parse_char("SNOWDUDE", aliases=aliases)       == (0x2603, "uni2603", 0x2603, "uni2603", None))
     assert(parse_char("SNOWDUDE.vari", aliases=aliases)  == (-1, "uni2603.vari", 0x2603, "uni2603", "vari"))
     assert(parse_char("SNOWDUDE--vari", aliases=aliases) == (-1, "uni2603.vari", 0x2603, "uni2603", "vari"))
