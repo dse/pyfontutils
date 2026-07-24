@@ -4,13 +4,11 @@
 import os, sys, argparse
 from enum import Enum
 
-sys.path.append("%s/git/dse.d/my-python/src/my_python_dse" % os.environ["HOME"])
-from font_utils import silence, get_fonts_in, u
+sys.path.append("%s/git/dse.d/pyfontutils/lib" % os.environ["HOME"])
+from font_utils import get_fonts_in, u
 from font_spacing_utils import get_font_spacing_type, FontSpacing
 
-silence.on()
 import fontforge
-silence.off()
 
 class Exactness(Enum):
     EXACT = 0

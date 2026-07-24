@@ -3,12 +3,9 @@
 
 import os, sys
 sys.path.append(os.path.dirname(os.path.realpath(__file__)) + "/../lib")
-from font_utils import silence, open_font
+from font_utils import open_font
 
-silence()
 import fontforge
-silence(False)
-
 import argparse
 
 def main():

@@ -3,11 +3,8 @@
 
 import os, sys
 sys.path.append(os.path.dirname(os.path.realpath(__file__)) + "/../lib")
-from font_utils import silence
 
-silence()
 import fontforge
-silence(False)
 
 import argparse, csv, json
 from operator import itemgetter
@@ -83,18 +80,12 @@ def main():
 
     rows = []
     for filename in args.filenames:
-        if not args.verbose:
-            silence()
         try:
             font = fontforge.open(filename)
         except OSError as e:
             if e.args[0] != "Open failed":
                 raise
-            if not args.verbose:
-                silence(False)
             continue
-        if not args.verbose:
-            silence(False)
         row = {
             "filename": filename,
             "psFontName": font.fontname,

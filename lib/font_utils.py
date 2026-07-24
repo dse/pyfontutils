@@ -1,14 +1,9 @@
 # -*- comment-column: 80; fill-column: 132 -*-
-import os, re, unicodedata, fontforge
-from silence import silence
+import os, re, unicodedata, fontforge, sys
 from types import SimpleNamespace
 
-# sys.path.append(os.path.dirname(os.path.realpath(__file__)) + "/../lib")
-# from font_utils import ...
-
-silence()
-import fontforge
-silence(False)
+sys.path.append(os.path.realpath(os.path.dirname(__file__)) + "/../lib")
+from parse_char.parse_char import parse_char
 
 def table(field_names, rows):
     if type(field_names) == list and type(rows) == list:
@@ -72,8 +67,6 @@ def open_font(filename, verbose=False, flags=()):
         verbose = False
     else:
         verbose = int(verbose)
-    if verbose <= MAX_VERBOSE_SILENT:
-        silence()
     try:
         if verbose:
             print("Opening %s" % filename)
@@ -81,11 +74,7 @@ def open_font(filename, verbose=False, flags=()):
     except OSError as e:
         if e.args[0] != "Open failed":
             raise
-        if verbose <= MAX_VERBOSE_SILENT:
-            silence(False)
         return
-    if verbose <= MAX_VERBOSE_SILENT:
-        silence(False)
     return font
 
 def u(codepoint):
@@ -153,17 +142,11 @@ def get_fonts_in(filenames, close=True, verbose=0, ttc=True, open_font=True, nam
                 yield font_struct
                 continue
             try:
-                if is_silent:
-                    silence(True)
                 print("Opening %s" % font_struct.filename_open)
                 font = fontforge.open(font_struct.filename_open)
                 print("Opened")
             except Exception as err:
-                if is_silent:
-                    silence(False)
                 raise err
-            if is_silent:
-                silence(False)
             if names:
                 if font_struct.fontname is None:
                     font_struct.fontname = font.fontname
@@ -267,130 +250,50 @@ def u(codepoint, pad=False):
         result = "%-8s" % result
     return result
 
+# PARSE_CHAR
 def parse_char_str(glyphname, default=Exception, aliases=None):
-    orig_glyphname_arg = glyphname
-
-    def default_value():
-        if default == tuple([None]):
-            return (None, None, None, None, None)
-        elif default == tuple([-1]):
-            return (-1, "", -1, "", None)
-        else:
-            return default
-
-    if type(glyphname) is int:
-        glyphname = "0x%04x" % glyphname
-    elif type(glyphname) is float:
-        glyphname = "0x%04x" % round(glyphname)
-    elif type(glyphname) is str:
-        pass
-    else:
-        if default is Exception:
-            raise TypeError("invalid argument type; must be int, float, or str")
-        return default_value()
-
-    if "." in glyphname:
-        (base_glyphname, variant) = glyphname.split(".", 1)
-    elif "--" in glyphname:
-        (base_glyphname, variant) = glyphname.split("--", 1)
-    else:
-        base_glyphname = glyphname
-        variant = None
-
-    if len(base_glyphname) == 1:
-        base_codepoint = ord(base_glyphname[0])
-    elif match := re.fullmatch(r'(?:0?x|u\+?|uni)([0-9a-f]+)', base_glyphname, flags=re.I):
-        base_codepoint = int(match[1], 16)
-    elif fontforge.unicodeFromName(base_glyphname) >= 0:
-        base_codepoint = fontforge.unicodeFromName(base_glyphname)
-    elif unicodedata_lookup(base_glyphname, None) is not None:
-        base_codepoint = ord(unicodedata_lookup(base_glyphname, None))
-    elif aliases is not None and type(aliases) is dict and base_glyphname in aliases:
-        base_codepoint = parse_char_str(aliases[base_glyphname])[2]
-    elif default is Exception:
-        raise Exception("invalid character name: %s" % repr(orig_glyphname_arg))
-    else:
-        return default_value()
-
-    codepoint = base_codepoint if variant is None else -1
-    base_glyphname = fontforge.nameFromUnicode(base_codepoint)
-    glyphname = base_glyphname if variant is None else base_glyphname + "." + variant
-    return (codepoint, glyphname, base_codepoint, base_glyphname, variant)
+    return parse_char(glyphname, default=default, aliases=aliases)
 
 def unicodedata_lookup(name, default=None):
     try:
         return unicodedata.lookup(name)
     except KeyError:
+        if default is Exception:
+            raise
         return default
 
 def unicodedata_name(char, default=None):
+    [codepoint, char] = parse_char_arg(char)
     try:
         return unicodedata.name(char)
-    except ValueError:
+    except (ValueError, TypeError):
+        if default is Exception:
+            raise
+        return default
+
+def unicodedata_category(char, default=None):
+    [codepoint, char] = parse_char_arg(char)
+    try:
+        return unicodedata.category(char)
+    except (ValueError, TypeError):
+        if default is Exception:
+            raise
         return default
 
 def parse_codepoint_argument(param, default=Exception, as_type=int, orig_param=None, aliases=None):
-    if orig_param is None:
-        orig_param = param
-    if as_type not in [str, int]:
-        raise Exception("as_type must be str or int")
-    kwargs = {
-        "default": default,
-        "as_type": as_type,
-        "orig_param": orig_param,
-    }
-
-    if type(param) == int:
-        if param not in range(0, 0x110000):
-            if default is Exception:
-                raise ValueError("invalid codepoint: %s" % repr(orig_param))
-            return default
-        return param if as_type is int else chr(param)
-
-    if type(param) == float:
-        if param != round(param):
-            if default is Exception:
-                raise ValueError("float codepoint must be integer: %s" % repr(orig_param))
-            return default
-        return parse_codepoint_argument(int(param), **kwargs)
-
-    if type(param) == str:
-
-        # SINGLE CHARACTER
-
-        if len(param) == 1:
-            return parse_codepoint_argument(ord(param), **kwargs)
-
-        # HEX CODE A LA "U+1F4A9", "0x1f4a9", "uni1f4a9", "u1f4a9", etc.
-
-        if match := re.fullmatch(r'(?:u\+?|0?x)([0-9a-f]+)', param, re.IGNORECASE):
-            return parse_codepoint_argument(int(match[1], 16), **kwargs)
-
-        # UNICODE CHARACTER NAME
-
-        try:
-            char = unicodedata.lookup(param.upper())
-            return char if as_type is str else ord(char)
-        except KeyError:
-            pass
-
-        # ADOBE GLYPH NAME
-
-        codepoint = fontforge.unicodeFromName(param)
-        if codepoint >= 0:
-            return parse_codepoint_argument(codepoint, **kwargs)
-
-        # ALIAS
-
-        if aliases is not None and type(aliases) is dict and param in aliases:
-            return parse_codepoint_argument(aliases[param], **kwargs)
-
-        # FALLBACK
-
+    try:
+        return parse_char(param, aliases=aliases)[2]
+    except:
         if default is Exception:
-            raise ValueError("invalid character name: %s" % repr(orig_param))
-
+            raise
         return default
-    if default is Exception:
-        raise TypeError("invalid argument type, must be int, float, or str; got %s" % repr(type(param)))
-    return default
+
+def get_base_codepoint(glyph, default=-1):
+    return fontforge.unicodeFromName(glyph.glyphname.split(".")[0])
+
+def get_base_glyphname(glyph, default=None):
+    return glyph.glyphname.split(".")[0]
+
+def get_variant_name(glyph, default=None):
+    if "." in glyph.glyphname:
+        return glyph.glyphname.split(".", 1)[1]

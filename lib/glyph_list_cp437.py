@@ -2,6 +2,8 @@
 #
 # https://en.wikipedia.org/wiki/Code_page_437
 
+__all__ = ["CP437"]
+
 CP437 = [
     0x0000,
     0x00a0,

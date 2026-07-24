@@ -26,12 +26,9 @@ def main():
                      for font_in_file in fonts_in_file]
         for [filename, basename] in fonts:
             try:
-                if is_silent: silence(True)
                 font = fontforge.open(filename)
             except Exception as err:
-                if is_silent: silence(False)
                 raise err
-            if is_silent: silence(True)
             visible_filename = filename if args.path else basename
 
             if progname == "fontfamily":
@@ -96,12 +93,9 @@ def get_fonts_in(filenames):
                               for font_in_file in fonts_in_file]
         for font_filename in font_filenames:
             try:
-                if is_silent: silence(True)
                 font = fontforge.open(filename)
             except Exception as err:
-                if is_silent: silence(False)
                 raise err
-            if is_silent: silence(True)
             yield font
             font.close()
 

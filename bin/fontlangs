@@ -18,12 +18,9 @@ def main():
             fonts = ["%s(%s)" % (filename, font_in_file) for font_in_file in fonts_in_file]
         for filename in fonts:
             try:
-                if is_silent: silence(True)
                 font = fontforge.open(filename)
             except Exception as err:
-                if is_silent: silence(False)
                 raise err
-            if is_silent: silence(False)
             print("%s:" % filename)
             LANGS_DIR = "%s/git/googlefonts--lang/Lib/gflanguages/data/languages" % os.environ["HOME"]
             for basename in os.listdir(LANGS_DIR):

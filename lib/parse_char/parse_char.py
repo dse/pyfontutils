@@ -1,6 +1,6 @@
 import re, fontforge, unicodedata
 
-def parse_char(param, default=None, aliases=None):
+def parse_char(param, default=None, aliases=None, plain_hex=False):
     orig_param = param
 
     def default_value_or_error():
@@ -37,6 +37,8 @@ def parse_char(param, default=None, aliases=None):
     base_codepoint = None
     if len(param) == 1:
         base_codepoint = ord(param)
+    elif plain_hex and (match := re.fullmatch(r'[0-9a-f]+', param, flags=re.I)):
+        base_codepoint = int(param, 16)
     elif match := re.fullmatch(r'(?:u\+|0?x)([0-9a-f]+)', param, flags=re.I):
         base_codepoint = int(match[1], 16)
     elif (char := unicodedata_lookup(param, default=None)) is not None:

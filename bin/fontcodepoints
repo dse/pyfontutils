@@ -1,7 +1,7 @@
 #!/usr/bin/env -S fontforge -quiet -lang=py -script
 # -*- mode: python; coding: utf-8 -*-
 import os, sys, argparse, fontforge, unicodedata
-sys.path.append("%s/git/dse.d/my-python/src/my_python_dse" % os.getenv("HOME"))
+sys.path.append("%s/git/dse.d/pyfontutils/lib" % os.getenv("HOME"))
 from font_utils import get_fonts_in, get_font_count, u, get_base_codepoint
 from glyph_lists import COMBINED_GLYPH_LIST
 def main():

@@ -10,16 +10,16 @@ __all__ = [
     "GLYPH_LISTS",
 ]
 
-from glyph_list_wgl4          import WGL4, WGL4_PRIVATE_USE
-from glyph_list_w1g           import W1G
-from glyph_list_aglfn         import AGLFN
-from glyph_list_agl           import AGL
-from glyph_list_cp437         import CP437
-from glyph_list_zapf_dingbats import ZAPF_DINGBATS
-from glyph_list_secs          import SECS
-from glyph_list_mes_1         import MES_1
-from glyph_list_mes_2         import MES_2
-from glyph_list_mes_3b        import MES_3B
+from .glyph_list_wgl4          import WGL4, WGL4_PRIVATE_USE
+from .glyph_list_w1g           import W1G
+from .glyph_list_aglfn         import AGLFN
+from .glyph_list_agl           import AGL
+from .glyph_list_cp437         import CP437
+from .glyph_list_zapf_dingbats import ZAPF_DINGBATS
+from .glyph_list_secs          import SECS
+from .glyph_list_mes_1         import MES_1
+from .glyph_list_mes_2         import MES_2
+from .glyph_list_mes_3b        import MES_3B
 # from glyph_list_din_91379     import DIN_91379
 
 GLYPH_LISTS = [
