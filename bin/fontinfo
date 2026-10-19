@@ -1,135 +1,198 @@
 #!/usr/bin/env -S fontforge -quiet -lang=py -script
 # -*- mode: python; coding: utf-8 -*-
 
-import os, sys
-sys.path.append(os.path.dirname(os.path.realpath(__file__)) + "/../lib")
+import os, sys, fontforge, argparse, csv, json
 
-import fontforge
-
-import argparse, csv, json
-from operator import itemgetter
-
-from font_utils import table, flatten, tsv_value_escape, csv_value_escape, table_keys, table_dict
-from font_panose import expand_panose
-
-PROGNAME = os.path.splitext(os.path.basename(sys.argv[0]))[0]
+MAP = {
+    # args.xxx                      # font.xxx
+    "ascent":                       { "fontforge": "ascent", },
+    "bitmap_sizes":                 { "fontforge": "bitmapSizes", },
+    "cap_height":                   { "fontforge": "capHeight", },
+    "cid_copyright":                { "fontforge": "cidcopyright", },
+    "cid_family_name":              { "fontforge": "cidfamilyname", },
+    "cid_font_name":                { "fontforge": "cidfontname", },
+    "cid_full_name":                { "fontforge": "cidfullname", },
+    "cid_ordering":                 { "fontforge": "cidordering", },
+    "cid_registry":                 { "fontforge": "cidregistry", },
+    "cid_subfont":                  { "fontforge": "cidsubfont", },
+    "cid_subfont_count":            { "fontforge": "cidsubfontcnt", },
+    "cid_subfont_names":            { "fontforge": "cidsubfontnames", },
+    "cid_supplement":               { "fontforge": "cidsupplement", },
+    "cid_version":                  { "fontforge": "cidversion", },
+    "cid_weight":                   { "fontforge": "cidweight", },
+    "comment":                      { "fontforge": "comment", },
+    "copyright":                    { "fontforge": "copyright", },
+    "cvt":                          { "fontforge": "cvt", },
+    "descent":                      { "fontforge": "descent", },
+    "design_size":                  { "fontforge": "design_size", },
+    "em":                           { "fontforge": "em", },
+    "encoding":                     { "fontforge": "encoding", },
+    "family_name":                  { "fontforge": "familyname", },
+    "fond_name":                    { "fontforge": "fondname", },
+    "font_log":                     { "fontforge": "fontlog", },
+    "font_name":                    { "fontforge": "fontname", },
+    "fonts_in_file":                { "fontforge": "fontsInFile", },
+    "full_name":                    { "fontforge": "fullname", },
+    "gasp":                         { "fontforge": "gasp", },
+    "gasp_version":                 { "fontforge": "gasp_version", },
+    "gpos_lookups":                 { "fontforge": "gpos_lookups", },
+    "gsub_lookups":                 { "fontforge": "gsub_lookups", },
+    "guide":                        { "fontforge": "guide", },
+    "has_vmetrics":                 { "fontforge": "hasvmetrics", },
+    "head_optimized_for_cleartype": { "fontforge": "head_optimized_for_cleartype", },
+    "hhea_ascent":                  { "fontforge": "hhea_ascent", },
+    "hhea_ascent_add":              { "fontforge": "hhea_ascent_add", },
+    "hhea_descent":                 { "fontforge": "hhea_descent", },
+    "hhea_descent_add":             { "fontforge": "hhea_descent_add", },
+    "hhea_linegap":                 { "fontforge": "hhea_linegap", },
+    "horizontal_baseline":          { "fontforge": "horizontalBaseline", },
+    "is_cid":                       { "fontforge": "is_cid", },
+    "is_quadratic":                 { "fontforge": "is_quadratic", },
+    "italic_angle":                 { "fontforge": "italicangle", },
+    "layer_count":                  { "fontforge": "layer_cnt", },
+    "layers":                       { "fontforge": "layers", },
+    "load_state":                   { "fontforge": "loadState", },
+    "mac_style":                    { "fontforge": "macstyle" },
+    "macstyle":                     { "fontforge": "macstyle" },
+    "math":                         { "fontforge": "math", },
+    "maxp_fdefs":                   { "fontforge": "maxp_FDEFs", },
+    "maxp_idefs":                   { "fontforge": "maxp_IDEFs", },
+    "maxp_max_stack_depth":         { "fontforge": "maxp_maxStackDepth", },
+    "maxp_storage_count":           { "fontforge": "maxp_storageCnt", },
+    "maxp_twilight_point_count":    { "fontforge": "maxp_twilightPtCnt", },
+    "maxp_zones":                   { "fontforge": "maxp_zones", },
+    "multi_layer":                  { "fontforge": "multilayer", },
+    "only_bitmaps":                 { "fontforge": "onlybitmaps", },
+    "os2_capheight":                { "fontforge": "os2_capheight", },
+    "code_pages":                   { "fontforge": "os2_codepages", },
+    "family_class":                 { "fontforge": "os2_family_class", },
+    "fstype":                       { "fontforge": "os2_fstype", }, # BITMASK
+    "fs_type":                      { "fontforge": "os2_fstype", }, # BITMASK
+    "panose":                       { "fontforge": "os2_panose", },
+    "os2_strikeypos":               { "fontforge": "os2_strikeypos", },
+    "os2_strikeysize":              { "fontforge": "os2_strikeysize", },
+    "os2_stylemap":                 { "fontforge": "os2_stylemap", }, # BITMASK
+    "stylemap":                     { "fontforge": "os2_stylemap", }, # BITMASK
+    "style_map":                    { "fontforge": "os2_stylemap", }, # BITMASK
+    "os2_subxoff":                  { "fontforge": "os2_subxoff", },
+    "os2_subxsize":                 { "fontforge": "os2_subxsize", },
+    "os2_subyoff":                  { "fontforge": "os2_subyoff", },
+    "os2_subysize":                 { "fontforge": "os2_subysize", },
+    "os2_supxoff":                  { "fontforge": "os2_supxoff", },
+    "os2_supxsize":                 { "fontforge": "os2_supxsize", },
+    "os2_supyoff":                  { "fontforge": "os2_supyoff", },
+    "os2_supysize":                 { "fontforge": "os2_supysize", },
+    "typo_ascent":                  { "fontforge": "os2_typoascent", },
+    "typo_ascent_add":              { "fontforge": "os2_typoascent_add", },
+    "typo_descent":                 { "fontforge": "os2_typodescent", },
+    "typo_descent_add":             { "fontforge": "os2_typodescent_add", },
+    "typo_line_gap":                { "fontforge": "os2_typolinegap", },
+    "unicode_ranges":               { "fontforge": "os2_unicoderanges", },
+    "use_typo_metrics":             { "fontforge": "os2_use_typo_metrics", },
+    "vendor":                       { "fontforge": "os2_vendor", },
+    "os2_version":                  { "fontforge": "os2_version", },
+    "os2_weight":                   { "fontforge": "os2_weight", },
+    "os2_weight_width_slope_only":  { "fontforge": "os2_weight_width_slope_only", },
+    "os2_width":                    { "fontforge": "os2_width", },
+    "winascent":                    { "fontforge": "os2_winascent", },
+    "winascent_add":                { "fontforge": "os2_winascent_add", },
+    "windescent":                   { "fontforge": "os2_windescent", },
+    "windescent_add":               { "fontforge": "os2_windescent_add", },
+    "os2_ex_height":                { "fontforge": "os2_xheight", },
+    "private_state":                { "fontforge": "privateState", },
+    "sfd_path":                     { "fontforge": "sfd_path", },
+    "sfnt_revision":                { "fontforge": "sfntRevision", },
+    "sfnt_names":                   { "fontforge": "sfnt_names", },
+    "size_feature":                 { "fontforge": "size_feature", },
+    "stroked_font":                 { "fontforge": "strokedfont", },
+    "stroke_width":                 { "fontforge": "strokewidth", },
+    # "style_set_names":            { "fontforge": "style_set_names", },
+    "unique_id":                    { "fontforge": "uniqueid", },
+    "underline_position":           { "fontforge": "upos", },
+    "underline_width":              { "fontforge": "uwidth", },
+    "version":                      { "fontforge": "version", },
+    "vertical_baseline":            { "fontforge": "verticalBaseline", },
+    "vertical_origin":              { "fontforge": "vertical_origin", },
+    "vhea_linegap":                 { "fontforge": "vhea_linegap", },
+    "weight_name":                  { "fontforge": "weight", },
+    "woff_major":                   { "fontforge": "woffMajor", },
+    "woff_metadata":                { "fontforge": "woffMetadata", },
+    "woff_minor":                   { "fontforge": "woffMinor", },
+    "ex_height":                    { "fontforge": "xHeight", },
+}
 
 def main():
-    global args
     parser = argparse.ArgumentParser()
     parser.add_argument('filenames', nargs='+', metavar='filename')
-    parser.add_argument('--format', choices=['csv','tsv','text','table','jsonl','json'], default='text')
-    parser.add_argument('--csv',           dest='format', action='store_const', const='csv')
-    parser.add_argument('--text',          dest='format', action='store_const', const='text')
-    parser.add_argument('--tsv',           dest='format', action='store_const', const='tsv')
-    parser.add_argument('--table',         dest='format', action='store_const', const='table')
-    parser.add_argument('--jsonl',         dest='format', action='store_const', const='jsonl')
-    parser.add_argument('--json',          dest='format', action='store_const', const='json')
     parser.add_argument('--verbose', '-v', action='count')
+    for key in sorted(MAP.keys()):
+        option_name = "--" + key.replace("_", "-")
+        parser.add_argument(option_name, action="store_true")
+    parser.add_argument('--all', action="store_true")
+
+    # parser.add_argument("--format", choices=["text", "csv"], default="text")
+    # parser.add_argument("--csv", dest="format", action="store_const", const="csv")
+
     args = parser.parse_args()
 
-    if PROGNAME == 'fontinfo':
-        field_names = [
-            "filename",
-            "psFontName",
-            "psFullName",
-            "psFamilyName",
-            "psWeight",
-            "em",
-            "ascent",
-            "descent",
-            "capHeight",
-            "xHeight",
-            "italicAngle",
-            "os2FamilyClass",
-            "os2Panose",
-            "os2Weight",
-        ]
-    elif PROGNAME == 'fontnames':
-        field_names = [
-            "filename",
-            "psFontName",
-            "psFullName",
-            "psFamilyName",
-            "psWeight",
-        ]
-    elif PROGNAME == 'fontgeom':
-        field_names = [
-            "filename",
-            "em",
-            "ascent",
-            "descent",
-            "capHeight",
-            "xHeight",
-            "italicAngle",
-        ]
-    elif PROGNAME == 'fontflags':
-        field_names = [
-            "filename",
-            "os2FamilyClass",
-            "os2Panose",
-            "os2Weight",
-        ]
-    else:
-        raise Exception("I don't know what I'm supposed to do as %s" % PROGNAME)
+    if args.all:
+        for key in MAP.keys():
+            setattr(args, key, True)
 
-    if args.format == 'csv':
-        print(",".join([csv_value_escape(k) for k in field_names]))
-    elif args.format == 'tsv':
-        print("\t".join([tsv_value_escape(k) for k in field_names]))
+    field_names = []
+    for (args_name, info) in MAP.items():
+        prop_name = info["fontforge"]
+        if getattr(args, args_name):
+            if type(prop_name) is str:
+                field_names.append(prop_name)
 
-    rows = []
+    stderr_fd = os.dup(2)
+
+    # BULK OF WORK IS PERFORMED HERE
+    def run_font(filename):
+        print("{filename}:".format(filename=filename))
+        font = None
+        for field_name in field_names:
+            reprn = None
+            value = None
+            if field_name == "fontsInFile":
+                value = fontforge.fontsInFile(filename)
+            else:
+                if font is None:
+                    os.close(2)
+                    font = fontforge.open(filename)
+                    os.dup2(stderr_fd, 2)
+                value = getattr(font, field_name)
+            if type(value) is tuple:
+                if all([type(v) == int for v in value]):
+                    reprn = json.dumps(value)
+                else:
+                    reprn = json.dumps(value, indent=4).replace("\n", "\n    ")
+            if field_name == "sfntRevision":
+                reprn = "%.4f" % (round(font.sfntRevision * 10000) / 10000)
+                reprn = "%s (%s)" % (reprn, repr(font.sfntRevision))
+            if reprn is None:
+                try:
+                    reprn = json.dumps(value)
+                except TypeError:
+                    reprn = repr(value)
+            if "\n" in reprn:
+                print("    {field_name}: {value}".format(field_name=field_name, value=reprn))
+            else:
+                print("    {field_name:<32s}  {value}".format(field_name=field_name+":", value=reprn))
+        if font:
+            font.close()
+
+    def run(filename):
+        font_names = fontforge.fontsInFile(filename)
+        if len(font_names) > 1:
+            filenames = ["{filename}({font_name})".format(filename=filename, font_name=font_name) for font_name in font_names]
+            for filename in filenames:
+                run_font(filename)
+        else:
+            run_font(filename)
+
     for filename in args.filenames:
-        try:
-            font = fontforge.open(filename)
-        except OSError as e:
-            if e.args[0] != "Open failed":
-                raise
-            continue
-        row = {
-            "filename": filename,
-            "psFontName": font.fontname,
-            "psFullName": font.fullname,
-            "psFamilyName": font.familyname,
-            "psWeight": font.weight,
-            "em": str(font.em),
-            "ascent": str(font.ascent),
-            "descent": str(font.descent),
-            "capHeight": str(font.capHeight),
-            "xHeight": str(font.xHeight),
-            "italicAngle": str(font.italicangle),
-            "os2FamilyClass": str(font.os2_family_class),
-            "os2Panose": str(font.os2_panose),
-            "os2Weight": str(font.os2_weight),
-        }
-
-        print(json.dumps(expand_panose(font.os2_panose, camel=True), indent=4))
-
-        if PROGNAME != 'fontinfo':
-            new_row = {}
-            for key in field_names:
-                if key in row:
-                    new_row[key] = row[key]
-            row = new_row
-
-        if args.format in ['table', 'json']:
-            rows.append(row)
-        font.close()
-
-        if args.format == 'csv':
-            print(",".join([csv_value_escape(row[k]) if k in row else "" for k in field_names]))
-        elif args.format == 'tsv':
-            print("\t".join([tsv_value_escape(row[k]) if k in row else "" for k in field_names]))
-        elif args.format == 'text':
-            print("%s:" % row["filename"])
-            for k in [key for key in row.keys() if key != "filename" and key in row and row[key] is not None]:
-                print("    %s: %s" % (k, row[k]))
-        elif args.format == 'jsonl':
-            print(json.dumps(row, separators=(',', ':')))
-
-    if args.format == 'table':
-        print(table_dict(rows))
-    elif args.format == 'json':
-        print(json.dumps(rows, indent=4))
+        run(filename)
 
 main()
