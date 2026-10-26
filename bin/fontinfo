@@ -130,8 +130,8 @@ def main():
         parser.add_argument(option_name, action="store_true")
     parser.add_argument('--all', action="store_true")
 
-    # parser.add_argument("--format", choices=["text", "csv"], default="text")
-    # parser.add_argument("--csv", dest="format", action="store_const", const="csv")
+    parser.add_argument("--format", choices=["text", "csv"], default="text")
+    parser.add_argument("--csv", dest="format", action="store_const", const="csv")
 
     args = parser.parse_args()
 
@@ -148,9 +148,19 @@ def main():
 
     stderr_fd = os.dup(2)
 
+    if args.format == "csv":
+        csv_writer = csv.writer(sys.stdout)
+        csv_writer.writerow(["filename", *field_names])
+
+    indent = " " * 38
+
     # BULK OF WORK IS PERFORMED HERE
     def run_font(filename):
-        print("{filename}:".format(filename=filename))
+        if args.format == "csv":
+            csv_row = [filename]
+        else:
+            print("{filename}:".format(filename=filename))
+
         font = None
         for field_name in field_names:
             reprn = None
@@ -163,23 +173,56 @@ def main():
                     font = fontforge.open(filename)
                     os.dup2(stderr_fd, 2)
                 value = getattr(font, field_name)
-            if type(value) is tuple:
-                if all([type(v) == int for v in value]):
-                    reprn = json.dumps(value)
+            if args.format == "csv":
+                if field_name == "sfntRevision":
+                    value = "%.4f" % (round(font.sfntRevision * 10000) / 10000)
+                if value is None or type(value) in [bool, str, int, float]:
+                    csv_row.append(value)
                 else:
-                    reprn = json.dumps(value, indent=4).replace("\n", "\n    ")
-            if field_name == "sfntRevision":
-                reprn = "%.4f" % (round(font.sfntRevision * 10000) / 10000)
-                reprn = "%s (%s)" % (reprn, repr(font.sfntRevision))
-            if reprn is None:
-                try:
-                    reprn = json.dumps(value)
-                except TypeError:
-                    reprn = repr(value)
-            if "\n" in reprn:
-                print("    {field_name}: {value}".format(field_name=field_name, value=reprn))
-            else:
-                print("    {field_name:<32s}  {value}".format(field_name=field_name+":", value=reprn))
+                    csv_row.append(json_dumps(value))
+            elif args.format == "text":
+                if type(value) is tuple:
+                    if all([type(v) == int for v in value]):
+                        reprn = json.dumps(value)
+                    else:
+                        reprn = json.dumps(value, indent=4).replace("\n", "\n    ")
+                if field_name == "sfntRevision":
+                    reprn = "%.4f" % (round(font.sfntRevision * 10000) / 10000)
+                    reprn = "%s (%s)" % (reprn, repr(font.sfntRevision))
+                if reprn is None:
+                    try:
+                        reprn = json.dumps(value)
+                    except TypeError:
+                        reprn = repr(value)
+                if "\n" in reprn:
+                    print("    {field_name}: {value}".format(field_name=field_name, value=reprn))
+                else:
+                    print("    {field_name:<32s}  {value}".format(field_name=field_name+":", value=reprn))
+                if field_name == "os2_stylemap":
+                    pass
+                elif field_name == "macstyle":
+                    if font.macstyle >= 0:
+                        print(indent + "bold:      " + str(font.macstyle &  1 != 0))
+                        print(indent + "italic:    " + str(font.macstyle &  2 != 0))
+                        print(indent + "underline: " + str(font.macstyle &  4 != 0))
+                        print(indent + "outline:   " + str(font.macstyle &  8 != 0))
+                        print(indent + "shadow:    " + str(font.macstyle & 16 != 0))
+                        print(indent + "condensed: " + str(font.macstyle & 32 != 0))
+                        print(indent + "extended:  " + str(font.macstyle & 64 != 0))
+                elif field_name == "os2_fstype":
+                    if   font.os2_fstype & 0x000f == 0:
+                        print(indent + "embedding:             installable")
+                    elif font.os2_fstype & 0x000f == 2:
+                        print(indent + "embedding:             restricted license")
+                    elif font.os2_fstype & 0x000f == 4:
+                        print(indent + "embedding:             preview & print")
+                    elif font.os2_fstype & 0x000f == 8:
+                        print(indent + "embedding:             editable")
+                    print(indent + "no subsetting:         " + str(font.os2_fstype & 0x0100 == 0x0100))
+                    print(indent + "bitmap embedding only: " + str(font.os2_fstype & 0x0200 == 0x0200))
+
+        if args.format == "csv":
+            csv_writer.writerow(csv_row)
         if font:
             font.close()
 
