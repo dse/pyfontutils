@@ -2,7 +2,7 @@
 # -*- mode: python; coding: utf-8 -*-
 import os, sys, argparse, fontforge, unicodedata
 sys.path.append("%s/git/dse.d/pyfontutils/lib" % os.getenv("HOME"))
-from font_utils import get_fonts_in, get_font_count, u, get_base_codepoint
+from font_utils import u, get_base_codepoint
 from glyph_lists import COMBINED_GLYPH_LIST
 def main():
     global args
@@ -17,12 +17,9 @@ def main():
     parser.add_argument("-o", "--octal",       action="store_true", help="Print codepoints in octal.")
     parser.add_argument("-v", "--variants",    action="store_true", help="Include variant characters.")
     args = parser.parse_args()
-    font_count = len(list(get_font_count(args.filenames)))
-    for fontx in get_fonts_in(args.filenames, names=True):
-        font = fontx.font
-        fontname = fontx.fontname
-        if font_count > 1:
-            print("%s:" % fontname)
+    for filename in args.filenames:
+        font = fontforge.open(filename)
+        print("%s:" % filename)
         codepoints = sorted(list(set([g.unicode for g in font.glyphs() if g.unicode >= 0])))
         def get_output_line(param):
             codepoint = None
